@@ -3,156 +3,318 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rush Hour Puzzle</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <title>Rush Hour Puzzle Viewer</title>
+    <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body>
+<body class="bg-gray-100 min-h-screen">
     <div id="root"></div>
+
     <script type="text/babel">
-    const RushHourVisualization = () => {
-      // Color constants
-      const COLORS = {
-        boardColor: '#F2EACD',
-        gridLineColor: '#222222',
-        primaryPieceColor: '#CC3333',
-        pieceColor: '#338899',
-        pieceOutlineColor: '#222222',
-        wallColor: '#222222',
-      };
-
-      const boardConfig = {
-        board: "BBBJCCHooJoKHAAJoKooIDDLEEIooLooxoGG",
-      };
-
-      // Constants
-      const CELL_SIZE = 80;
-      const GRID_SIZE = 6;
-      const BOARD_SIZE = CELL_SIZE * GRID_SIZE;
-
-      // Convert board string to grid
-      const board = [];
-      for (let i = 0; i < 6; i++) {
-        board.push(boardConfig.board.slice(i * 6, (i + 1) * 6).split(''));
-      }
-
-      // Find vehicle dimensions
-      const findVehicle = (startI, startJ, piece) => {
-        let width = 1, height = 1;
-        
-        // Check horizontal
-        while (startJ + width < 6 && board[startI][startJ + width] === piece) {
-          width++;
-        }
-        
-        // If not horizontal, check vertical
-        if (width === 1) {
-          while (startI + height < 6 && board[startI + height][startJ] === piece) {
-            height++;
-          }
-        }
-
-        return { width, height, isHorizontal: width > 1 };
-      };
-
-      return (
-        <svg width={BOARD_SIZE} height={BOARD_SIZE} viewBox={`0 0 ${BOARD_SIZE} ${BOARD_SIZE}`}>
-          {/* Board background */}
-          <rect width={BOARD_SIZE} height={BOARD_SIZE} fill={COLORS.boardColor} />
-
-          {/* Grid lines */}
-          {[...Array(GRID_SIZE + 1)].map((_, i) => (
-            <React.Fragment key={`grid-${i}`}>
-              <line 
-                x1={i * CELL_SIZE} 
-                y1={0} 
-                x2={i * CELL_SIZE} 
-                y2={BOARD_SIZE} 
-                stroke={COLORS.gridLineColor} 
-                strokeWidth="2"
-              />
-              <line 
-                x1={0} 
-                y1={i * CELL_SIZE} 
-                x2={BOARD_SIZE} 
-                y2={i * CELL_SIZE} 
-                stroke={COLORS.gridLineColor} 
-                strokeWidth="2"
-              />
-            </React.Fragment>
-          ))}
-
-          {/* Exit marker */}
-          <path
-            d={`M ${BOARD_SIZE},${2.5 * CELL_SIZE} L ${BOARD_SIZE + CELL_SIZE/10},${2.5 * CELL_SIZE} L ${BOARD_SIZE},${2.5 * CELL_SIZE - CELL_SIZE/10} L ${BOARD_SIZE},${2.5 * CELL_SIZE + CELL_SIZE/10} Z`}
-            fill={COLORS.gridLineColor}
-          />
-
-          {/* Vehicles and Walls */}
-          {board.map((row, i) => 
-            row.map((cell, j) => {
-              // Skip empty or processed cells
-              if (cell === 'o') return null;
-
-              // Wall rendering
-              if (cell === 'x') {
+        // RushHourBoard component
+        const RushHourBoard = ({ boardString = "IBBxooIooLDDJAALooJoKEEMFFKooMGGHHHM" }) => {
+            // Validate input
+            if (!boardString) {
                 return (
-                  <rect 
-                    key={`wall-${i}-${j}`}
-                    x={j * CELL_SIZE} 
-                    y={i * CELL_SIZE} 
-                    width={CELL_SIZE}
-                    height={CELL_SIZE}
-                    fill={COLORS.wallColor}
-                  />
+                    <div className="text-red-500 p-4 text-center">
+                        Please provide a valid board string
+                    </div>
                 );
-              }
+            }
 
-              const { width, height, isHorizontal } = findVehicle(i, j, cell);
-              
-              // Prevent duplicate rendering
-              if (i > 0 && (
-                (isHorizontal && row[j-1] === cell) || 
-                (!isHorizontal && board[i-1][j] === cell)
-              )) return null;
+            // Validate board size (must be 6x6)
+            if (boardString.length !== 36) {
+                return (
+                    <div className="text-red-500 p-4 text-center">
+                        Invalid board string: must be 36 characters (6x6 board)
+                    </div>
+                );
+            }
 
-              return (
-                <rect 
-                  key={`${i}-${j}`}
-                  x={j * CELL_SIZE} 
-                  y={i * CELL_SIZE} 
-                  width={isHorizontal ? width * CELL_SIZE : CELL_SIZE}
-                  height={!isHorizontal ? height * CELL_SIZE : CELL_SIZE}
-                  fill={cell === 'A' ? COLORS.primaryPieceColor : COLORS.pieceColor}
-                  stroke={COLORS.pieceOutlineColor}
-                  strokeWidth={2}
-                  rx={8}
-                  ry={8}
-                />
-              );
-            })
-          )}
-        </svg>
-      );
-    };
+            // Constants
+            const size = 6; // Fixed 6x6 board
+            const cellSize = 60;
+            const padding = 12;
+            const backgroundColor = "#FFFFFF";
+            const boardColor = "#F2EACD";
+            const gridLineColor = "#222222";
+            const primaryPieceColor = "#CC3333";
+            const pieceColor = "#338899";
+            const pieceOutlineColor = "#222222";
+            const wallColor = "#222222";
+            const wallBoltColor = "#AAAAAA";
+            
+            // Calculate dimensions
+            const width = size * cellSize;
+            const height = size * cellSize;
+            const viewBoxWidth = width + padding * 2;
+            const viewBoxHeight = height + padding * 2;
 
-    const App = () => {
-      return (
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          height: '100vh',
-          backgroundColor: '#f0f0f0'
-        }}>
-          <RushHourVisualization />
-        </div>
-      );
-    };
+            // Parse pieces and walls
+            const pieces = new Map();
+            const walls = [];
+            
+            for (let i = 0; i < boardString.length; i++) {
+                const label = boardString[i];
+                if (label === 'o' || label === '.') continue;
+                
+                if (label === 'x') {
+                    walls.push(i);
+                } else {
+                    if (!pieces.has(label)) {
+                        pieces.set(label, []);
+                    }
+                    pieces.get(label).push(i);
+                }
+            }
 
-    const { createRoot } = ReactDOM;
-    createRoot(document.getElementById('root')).render(<App />);
+            // Sort pieces by label
+            const sortedPieces = Array.from(pieces.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+
+            // Render walls
+            const svgWalls = walls.map((position, index) => {
+                const x = (position % size) * cellSize;
+                const y = Math.floor(position / size) * cellSize;
+                const boltRadius = cellSize / 25;
+                const boltPadding = cellSize / 6.5;
+                
+                return (
+                    <g key={`wall-${index}`}>
+                        {/* Wall square */}
+                        <rect
+                            x={x + padding}
+                            y={y + padding}
+                            width={cellSize}
+                            height={cellSize}
+                            fill={wallColor}
+                        />
+                        {/* Corner bolts */}
+                        <circle
+                            cx={x + padding + boltPadding}
+                            cy={y + padding + boltPadding}
+                            r={boltRadius}
+                            fill={wallBoltColor}
+                        />
+                        <circle
+                            cx={x + padding + cellSize - boltPadding}
+                            cy={y + padding + boltPadding}
+                            r={boltRadius}
+                            fill={wallBoltColor}
+                        />
+                        <circle
+                            cx={x + padding + boltPadding}
+                            cy={y + padding + cellSize - boltPadding}
+                            r={boltRadius}
+                            fill={wallBoltColor}
+                        />
+                        <circle
+                            cx={x + padding + cellSize - boltPadding}
+                            cy={y + padding + cellSize - boltPadding}
+                            r={boltRadius}
+                            fill={wallBoltColor}
+                        />
+                    </g>
+                );
+            });
+
+            // Convert piece positions to SVG elements
+            const svgPieces = sortedPieces.map(([label, positions]) => {
+                // Validate piece size
+                if (positions.length < 2) {
+                    console.warn(`Invalid piece ${label}: size must be at least 2`);
+                    return null;
+                }
+
+                const stride = positions[1] - positions[0];
+                const isHorizontal = stride === 1;
+                const pieceSize = positions.length;
+                
+                // Validate stride
+                if (stride !== 1 && stride !== size) {
+                    console.warn(`Invalid piece ${label}: invalid shape`);
+                    return null;
+                }
+                
+                // Validate consecutive positions
+                for (let i = 2; i < positions.length; i++) {
+                    if (positions[i] - positions[i-1] !== stride) {
+                        console.warn(`Invalid piece ${label}: non-consecutive positions`);
+                        return null;
+                    }
+                }
+                
+                const x = (positions[0] % size) * cellSize;
+                const y = Math.floor(positions[0] / size) * cellSize;
+                const width = isHorizontal ? cellSize * pieceSize : cellSize;
+                const height = isHorizontal ? cellSize : cellSize * pieceSize;
+                
+                const margin = cellSize / 8;
+                
+                return (
+                    <rect
+                        key={label}
+                        x={x + margin + padding}
+                        y={y + margin + padding}
+                        width={width - margin * 2}
+                        height={height - margin * 2}
+                        rx={cellSize / 8}
+                        fill={label === 'A' ? primaryPieceColor : pieceColor}
+                        stroke={pieceOutlineColor}
+                        strokeWidth={cellSize / 32}
+                    />
+                );
+            });
+
+            // Draw grid
+            const gridLines = [];
+            for (let i = 1; i < size; i++) {
+                // Vertical lines
+                gridLines.push(
+                    <line
+                        key={`v${i}`}
+                        x1={i * cellSize + padding}
+                        y1={padding}
+                        x2={i * cellSize + padding}
+                        y2={height + padding}
+                        stroke={gridLineColor}
+                        strokeWidth="2"
+                    />
+                );
+                // Horizontal lines
+                gridLines.push(
+                    <line
+                        key={`h${i}`}
+                        x1={padding}
+                        y1={i * cellSize + padding}
+                        x2={width + padding}
+                        y2={i * cellSize + padding}
+                        stroke={gridLineColor}
+                        strokeWidth="2"
+                    />
+                );
+            }
+
+            // Find primary piece (A) row for exit marker
+            const primaryRow = Math.floor(boardString.indexOf('A') / size);
+            
+            return (
+                <div className="flex justify-center items-center w-full">
+                    <svg
+                        viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
+                        className="w-full max-w-lg"
+                    >
+                        {/* Background */}
+                        <rect
+                            x={padding}
+                            y={padding}
+                            width={width}
+                            height={height}
+                            fill={boardColor}
+                            stroke={gridLineColor}
+                            strokeWidth="6"
+                        />
+                        
+                        {/* Grid */}
+                        {gridLines}
+                        
+                        {/* Walls */}
+                        {svgWalls}
+                        
+                        {/* Pieces */}
+                        {svgPieces}
+                        
+                        {/* Exit marker - now uses primaryRow */}
+                        <path
+                            d={`M ${width + padding} ${(primaryRow + 0.5) * cellSize + padding} 
+                                l ${padding/2} ${-padding/4} 
+                                v ${padding/2} 
+                                z`}
+                            fill={gridLineColor}
+                        />
+                    </svg>
+                </div>
+            );
+        };
+
+        // Database component
+        const App = () => {
+            const [currentPuzzle, setCurrentPuzzle] = React.useState(null);
+            const [loading, setLoading] = React.useState(true);
+
+            // Function to load the database file
+            const loadDatabase = async () => {
+                try {
+                    const response = await fetch('rush_no_walls.txt');
+                    const text = await response.text();
+                    const lines = text.trim().split('\n');
+                    return lines;
+                } catch (error) {
+                    console.error('Error loading database:', error);
+                    return [];
+                }
+            };
+
+            // Function to select a random puzzle
+            const selectRandomPuzzle = async () => {
+                setLoading(true);
+                const lines = await loadDatabase();
+                if (lines.length > 0) {
+                    const randomLine = lines[Math.floor(Math.random() * lines.length)];
+                    const [moves, board, states] = randomLine.trim().split(' ');
+                    setCurrentPuzzle({
+                        moves: parseInt(moves),
+                        board,
+                        states: parseInt(states)
+                    });
+                }
+                setLoading(false);
+            };
+
+            // Load initial puzzle
+            React.useEffect(() => {
+                selectRandomPuzzle();
+            }, []);
+
+            if (loading) {
+                return (
+                    <div className="flex justify-center items-center min-h-screen">
+                        <div className="text-xl">Loading...</div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="container mx-auto px-4 py-8">
+                    <h1 className="text-3xl font-bold text-center mb-8">Rush Hour Puzzle Viewer</h1>
+                    
+                    {currentPuzzle && (
+                        <div className="max-w-xl mx-auto">
+                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                                <RushHourBoard boardString={currentPuzzle.board} />
+                                <div className="mt-4 text-center text-gray-700">
+                                    <p>Moves required: {currentPuzzle.moves}</p>
+                                    <p>Reachable states: {currentPuzzle.states}</p>
+                                </div>
+                            </div>
+                            
+                            <div className="text-center">
+                                <button 
+                                    onClick={selectRandomPuzzle}
+                                    className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+                                >
+                                    New Random Puzzle
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // Render the app
+        ReactDOM.render(<App />, document.getElementById('root'));
     </script>
 </body>
 </html>
