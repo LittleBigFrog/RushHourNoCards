@@ -5,7 +5,7 @@ const RushHourApp = () => {
   // Load and parse the database on mount
   React.useEffect(() => {
     console.log('Loading database...');
-    fetch('rush_no_walls.json')
+    fetch('./rush_no_walls.json')
       .then(response => response.json())
       .then(data => {
         // Expand the compressed format into a more usable structure
