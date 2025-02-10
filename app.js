@@ -1,7 +1,19 @@
 const RushHourApp = () => {
   const [puzzlesByMoves, setPuzzlesByMoves] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
-
+  const processDatabase = (data) => {
+    const db = {};
+    data.m.forEach(moves => {
+      db[moves] = [];
+    });
+    data.p.forEach(([moveIdx, board, cluster]) => {
+      db[data.m[moveIdx]].push({
+        board: board,
+        clusterSize: cluster
+      });
+    });
+    return db;
+  };
   // Load and parse the database on mount
  React.useEffect(() => {
   console.log('Loading database...');
