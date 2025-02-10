@@ -3,31 +3,38 @@ const RushHourApp = () => {
   const [loading, setLoading] = React.useState(true);
 
   // Load and parse the database on mount
-  React.useEffect(() => {
-    console.log('Loading database...');
-    fetch('./rush_no_walls.json')
-      .then(response => response.json())
-      .then(data => {
-        // Expand the compressed format into a more usable structure
-        const db = {};
-        data.m.forEach(moves => {
-          db[moves] = [];
-        });
-        data.p.forEach(([moveIdx, board, cluster]) => {
-          db[data.m[moveIdx]].push({
-            board: board,
-            clusterSize: cluster
-          });
-        });
-        setPuzzlesByMoves(db);
-        setLoading(false);
-        console.log('Database loaded');
-      })
-      .catch(error => {
-        console.error('Error loading database:', error);
-        setLoading(false);
+ React.useEffect(() => {
+  console.log('Loading database...');
+  fetch('./rush_no_walls.json')
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      // Expand the compressed format into a more usable structure
+      const db = {};
+      data.m.forEach(moves => {
+        db[moves] = [];
       });
-  }, []);
+      data.p.forEach(([moveIdx, board, cluster]) => {
+        db[data.m[moveIdx]].push({
+          board: board,
+          clusterSize: cluster
+        });
+      });
+      setPuzzlesByMoves(db);
+      setLoading(false);
+      console.log('Database loaded');
+    })
+    .catch(error => {
+      console.error('Error loading database:', error);
+      setLoading(false);
+      document.getElementById('root').innerHTML = `<div style="color:red; padding:20px;">Error: ${error.message}</div>`;
+    });
+}, []);
+
 
   // Parse URL hash and redirect if needed
   React.useEffect(() => {
