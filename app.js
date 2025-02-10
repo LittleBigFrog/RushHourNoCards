@@ -23,13 +23,13 @@ const RushHourApp = () => {
       });
   }, []);
 
-  // Parse URL path and redirect if needed
+  // Parse URL hash and redirect if needed
   React.useEffect(() => {
     if (!puzzlesByMoves) return; // Wait for data to load
 
     const handleUrlChange = () => {
-      const path = window.location.pathname.slice(1); // Remove leading slash
-      const [urlMoves, urlBoard] = path.split('/');
+      const hash = window.location.hash.slice(1); // Remove leading #
+      const [urlMoves, urlBoard] = hash.split('/');
       
       // If we have both moves and board, URL is complete
       if (urlMoves && urlBoard) {
@@ -44,7 +44,7 @@ const RushHourApp = () => {
       if (urlMoves && puzzlesByMoves.has(urlMoves)) {
         const puzzles = puzzlesByMoves.get(urlMoves);
         const randomPuzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
-        window.location.replace(`/${urlMoves}/${randomPuzzle.board}`);
+        window.location.replace(`#${urlMoves}/${randomPuzzle.board}`);
         return;
       }
 
@@ -54,20 +54,22 @@ const RushHourApp = () => {
         [Math.floor(puzzlesByMoves.size / 2)];
       const puzzles = puzzlesByMoves.get(moves);
       const randomPuzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
-      window.location.replace(`/${moves}/${randomPuzzle.board}`);
+      window.location.replace(`#${moves}/${randomPuzzle.board}`);
     };
 
     handleUrlChange();
+    window.addEventListener('hashchange', handleUrlChange);
+    return () => window.removeEventListener('hashchange', handleUrlChange);
   }, [puzzlesByMoves]);
 
-  // Get current puzzle info from URL
-  const [_, movesStr, boardString] = window.location.pathname.split('/');
+  // Get current puzzle info from URL hash
+  const [_, movesStr, boardString] = (window.location.hash || '#').slice(1).split('/');
   const moves = movesStr || '';
 
   const handleDifficultyChange = (newMoves) => {
     const puzzles = puzzlesByMoves.get(newMoves);
     const randomPuzzle = puzzles[Math.floor(Math.random() * puzzles.length)];
-    window.location.href = `/${newMoves}/${randomPuzzle.board}`;
+    window.location.hash = `${newMoves}/${randomPuzzle.board}`;
   };
 
   const handleRandomPuzzle = () => {
@@ -76,7 +78,7 @@ const RushHourApp = () => {
 
   // Show loading state
   if (loading || !boardString) {
-    return <div className="text-center p-8">Loading...</div>;
+    return <div className="text-center p-8">Loading puzzle database...</div>;
   }
 
   // Find current puzzle's cluster size
