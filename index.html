@@ -3,80 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rush Hour Puzzle Collection</title>
+    <title>Rush Hour Random Puzzle</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>
     <div id="root"></div>
     <script type="text/babel">
-    // Inline script to ensure React 18 rendering
-    const { createRoot } = ReactDOM;
-    const root = createRoot(document.getElementById('root'));
-    
-    // Global processDatabase function
-    function processDatabase(data) {
-      const db = {};
-      data.m.forEach(moves => {
-        db[moves] = [];
-      });
-      data.p.forEach(([moveIdx, board, cluster]) => {
-        db[data.m[moveIdx]].push({
-          board: board,
-          clusterSize: cluster
-        });
-      });
-      return db;
-    }
-
-    // Main App Component
-    const RushHourApp = () => {
-      const [puzzlesByMoves, setPuzzlesByMoves] = React.useState(null);
-      const [loading, setLoading] = React.useState(true);
+    const App = () => {
+      const [puzzle, setPuzzle] = React.useState(null);
 
       React.useEffect(() => {
-        console.log('Loading database...');
-        fetch('./rush_no_walls.json?v=' + new Date().getTime())
-          .then(response => {
-            console.log('Response status:', response.status);
-            return response.json();
-          })
-          .then(data => {
-            console.log('Parsed JSON:', data);
-            const processedData = processDatabase(data);
-            setPuzzlesByMoves(processedData);
-            setLoading(false);
-          })
-          .catch(error => {
-            console.error('Error loading database:', error);
-            document.getElementById('root').innerHTML = `
-              <div style="color:red; padding:20px; text-align:center;">
-                Error loading database: ${error.message}
-                <br>
-                Check console for details
-              </div>
-            `;
-            setLoading(false);
-          });
+        const fetchRandomPuzzle = async () => {
+          try {
+            const response = await fetch('rush_no_walls.txt');
+            const text = await response.text();
+            const lines = text.trim().split('\n');
+            const randomLine = lines[Math.floor(Math.random() * lines.length)];
+            
+            // Parse the line (assuming format: moves board clusterSize)
+            const [moves, boardString, clusterSize] = randomLine.split(' ');
+            
+            setPuzzle({ moves, boardString, clusterSize });
+          } catch (error) {
+            console.error('Error fetching puzzle:', error);
+          }
+        };
+
+        fetchRandomPuzzle();
       }, []);
 
-      // Existing component logic here...
-      if (loading) {
-        return <div className="text-center p-8">Loading puzzle database...</div>;
-      }
+      if (!puzzle) return <div>Loading...</div>;
 
-      // Placeholder for the rest of your existing component
       return (
-        <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
-          <div>Rush Hour Puzzle Loaded Successfully</div>
+        <div>
+          <h1>Random Rush Hour Puzzle</h1>
+          <p>Moves: {puzzle.moves}</p>
+          <p>Cluster Size: {puzzle.clusterSize}</p>
+          <PuzzleVisualization boardString={puzzle.boardString} />
         </div>
       );
     };
 
-    // Render the app
-    root.render(<RushHourApp />);
+    const PuzzleVisualization = ({ boardString }) => {
+      // Color constants
+      const COLORS = {
+        boardColor: '#F2EACD',
+        gridLineColor: '#222222',
+        primaryPieceColor: '#CC3333',
+        pieceColor: '#338899',
+        wallColor: '#222222',
+      };
+
+      // Constants
+      const CELL_SIZE = 80;
+      const GRID_SIZE = 6;
+      const BOARD_SIZE = CELL_SIZE * GRID_SIZE;
+
+      // Convert board string to grid
+      const board = [];
+      for (let i = 0; i < 6; i++) {
+        board.push(boardString.slice(i * 6, (i + 1) * 6).split(''));
+      }
+
+      // Find vehicle dimensions
+      const findVehicle = (startI, startJ, piece) => {
+        let width = 1, height = 1;
+        
+        // Check horizontal
+        while (startJ + width < 6 && board[startI][startJ + width] === piece) {
+          width++;
+        }
+        
+        // If not horizontal, check vertical
+        if (width === 1) {
+          while (startI + height < 6 && board[startI + height][startJ] === piece) {
+            height++;
+          }
+        }
+
+        return { width, height, isHorizontal: width > 1 };
+      };
+
+      return (
+        <svg width={BOARD_SIZE} height={BOARD_SIZE} viewBox={`0 0 ${BOARD_SIZE} ${BOARD_SIZE}`}>
+          {/* Board background */}
+          <rect width={BOARD_SIZE} height={BOARD_SIZE} fill={COLORS.boardColor} />
+
+          {/* Grid lines */}
+          {[...Array(GRID_SIZE + 1)].map((_, i) => (
+            <React.Fragment key={`grid-${i}`}>
+              <line 
+                x1={i * CELL_SIZE} 
+                y1={0} 
+                x2={i * CELL_SIZE} 
+                y2={BOARD_SIZE} 
+                stroke={COLORS.gridLineColor} 
+              />
+              <line 
+                x1={0} 
+                y1={i * CELL_SIZE} 
+                x2={BOARD_SIZE} 
+                y2={i * CELL_SIZE} 
+                stroke={COLORS.gridLineColor} 
+              />
+            </React.Fragment>
+          ))}
+
+          {/* Vehicles and Walls */}
+          {board.map((row, i) => 
+            row.map((cell, j) => {
+              if (cell === 'o' || cell === 'x') return null;
+
+              const { width, height, isHorizontal } = findVehicle(i, j, cell);
+              
+              // Prevent duplicate rendering
+              if (i > 0 && (
+                (isHorizontal && row[j-1] === cell) || 
+                (!isHorizontal && board[i-1][j] === cell)
+              )) return null;
+
+              return (
+                <rect 
+                  key={`${i}-${j}`}
+                  x={j * CELL_SIZE} 
+                  y={i * CELL_SIZE} 
+                  width={isHorizontal ? width * CELL_SIZE : CELL_SIZE}
+                  height={!isHorizontal ? height * CELL_SIZE : CELL_SIZE}
+                  fill={cell === 'A' ? COLORS.primaryPieceColor : COLORS.pieceColor}
+                  stroke={COLORS.gridLineColor}
+                  strokeWidth={2}
+                />
+              );
+            })
+          )}
+        </svg>
+      );
+    };
+
+    const { createRoot } = ReactDOM;
+    createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 </html>
