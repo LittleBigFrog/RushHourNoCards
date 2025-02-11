@@ -13,7 +13,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        // RushHourBoard component remains exactly the same as your original
+        // RushHourBoard component
         const RushHourBoard = ({ boardString = "IBBxooIooLDDJAALooJoKEEMFFKooMGGHHHM" }) => {
             // Validate input
             if (!boardString) {
@@ -167,6 +167,35 @@
                 );
             });
 
+            // Draw grid
+            const gridLines = [];
+            for (let i = 1; i < size; i++) {
+                // Vertical lines
+                gridLines.push(
+                    <line
+                        key={`v${i}`}
+                        x1={i * cellSize + padding}
+                        y1={padding}
+                        x2={i * cellSize + padding}
+                        y2={height + padding}
+                        stroke={gridLineColor}
+                        strokeWidth="2"
+                    />
+                );
+                // Horizontal lines
+                gridLines.push(
+                    <line
+                        key={`h${i}`}
+                        x1={padding}
+                        y1={i * cellSize + padding}
+                        x2={width + padding}
+                        y2={i * cellSize + padding}
+                        stroke={gridLineColor}
+                        strokeWidth="2"
+                    />
+                );
+            }
+
             // Find primary piece (A) row for exit marker
             const primaryRow = Math.floor(boardString.indexOf('A') / size);
             
@@ -187,27 +216,8 @@
                             strokeWidth="6"
                         />
                         
-                        {/* Grid lines */}
-                        {Array.from({ length: size - 1 }, (_, i) => i + 1).map(i => (
-                            <React.Fragment key={i}>
-                                <line
-                                    x1={i * cellSize + padding}
-                                    y1={padding}
-                                    x2={i * cellSize + padding}
-                                    y2={height + padding}
-                                    stroke={gridLineColor}
-                                    strokeWidth="2"
-                                />
-                                <line
-                                    x1={padding}
-                                    y1={i * cellSize + padding}
-                                    x2={width + padding}
-                                    y2={i * cellSize + padding}
-                                    stroke={gridLineColor}
-                                    strokeWidth="2"
-                                />
-                            </React.Fragment>
-                        ))}
+                        {/* Grid */}
+                        {gridLines}
                         
                         {/* Walls */}
                         {svgWalls}
@@ -215,7 +225,7 @@
                         {/* Pieces */}
                         {svgPieces}
                         
-                        {/* Exit marker */}
+                        {/* Exit marker - now uses primaryRow */}
                         <path
                             d={`M ${width + padding} ${(primaryRow + 0.5) * cellSize + padding} 
                                 l ${padding/2} ${-padding/4} 
@@ -228,34 +238,10 @@
             );
         };
 
-        // New RangeSlider component
-        const RangeSlider = ({ value, min, max, onChange, label }) => (
-            <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {label}: {value}
-                </label>
-                <input
-                    type="range"
-                    min={min}
-                    max={max}
-                    value={value}
-                    onChange={(e) => onChange(parseInt(e.target.value))}
-                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                />
-                <div className="flex justify-between text-xs text-gray-500">
-                    <span>{min}</span>
-                    <span>{max}</span>
-                </div>
-            </div>
-        );
-
         // Database component
         const App = () => {
             const [currentPuzzle, setCurrentPuzzle] = React.useState(null);
             const [loading, setLoading] = React.useState(true);
-            const [movesRange, setMovesRange] = React.useState({ min: 0, max: 100, current: 50 });
-            const [statesRange, setStatesRange] = React.useState({ min: 0, max: 10000, current: 5000 });
-            const [allPuzzles, setAllPuzzles] = React.useState([]);
 
             // Function to load the database file
             const loadDatabase = async () => {
@@ -263,63 +249,32 @@
                     const response = await fetch('rush_no_walls.txt');
                     const text = await response.text();
                     const lines = text.trim().split('\n');
-                    
-                    const puzzles = lines.map(line => {
-                        const [moves, board, states] = line.trim().split(' ');
-                        return {
-                            moves: parseInt(moves),
-                            board,
-                            states: parseInt(states)
-                        };
-                    });
-
-                    // Calculate actual ranges from data
-                    const moves = puzzles.map(p => p.moves);
-                    const states = puzzles.map(p => p.states);
-                    
-                    setMovesRange(prev => ({
-                        min: Math.min(...moves),
-                        max: Math.max(...moves),
-                        current: Math.min(prev.current, Math.max(...moves))
-                    }));
-                    
-                    setStatesRange(prev => ({
-                        min: Math.min(...states),
-                        max: Math.max(...states),
-                        current: Math.min(prev.current, Math.max(...states))
-                    }));
-
-                    return puzzles;
+                    return lines;
                 } catch (error) {
                     console.error('Error loading database:', error);
                     return [];
                 }
             };
 
-            // Function to select a random puzzle based on filters
-            const selectRandomPuzzle = () => {
-                const filteredPuzzles = allPuzzles.filter(puzzle => 
-                    puzzle.moves <= movesRange.current &&
-                    puzzle.states <= statesRange.current
-                );
-
-                if (filteredPuzzles.length > 0) {
-                    const randomPuzzle = filteredPuzzles[Math.floor(Math.random() * filteredPuzzles.length)];
-                    setCurrentPuzzle(randomPuzzle);
+            // Function to select a random puzzle
+            const selectRandomPuzzle = async () => {
+                setLoading(true);
+                const lines = await loadDatabase();
+                if (lines.length > 0) {
+                    const randomLine = lines[Math.floor(Math.random() * lines.length)];
+                    const [moves, board, states] = randomLine.trim().split(' ');
+                    setCurrentPuzzle({
+                        moves: parseInt(moves),
+                        board,
+                        states: parseInt(states)
+                    });
                 }
+                setLoading(false);
             };
 
-            // Load initial data
+            // Load initial puzzle
             React.useEffect(() => {
-                const initialize = async () => {
-                    const puzzles = await loadDatabase();
-                    setAllPuzzles(puzzles);
-                    if (puzzles.length > 0) {
-                        setCurrentPuzzle(puzzles[Math.floor(Math.random() * puzzles.length)]);
-                    }
-                    setLoading(false);
-                };
-                initialize();
+                selectRandomPuzzle();
             }, []);
 
             if (loading) {
@@ -342,23 +297,6 @@
                                     <p>Moves required: {currentPuzzle.moves}</p>
                                     <p>Reachable states: {currentPuzzle.states}</p>
                                 </div>
-                            </div>
-                            
-                            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-                                <RangeSlider
-                                    value={movesRange.current}
-                                    min={movesRange.min}
-                                    max={movesRange.max}
-                                    onChange={(value) => setMovesRange(prev => ({ ...prev, current: value }))}
-                                    label="Maximum Moves Required"
-                                />
-                                <RangeSlider
-                                    value={statesRange.current}
-                                    min={statesRange.min}
-                                    max={statesRange.max}
-                                    onChange={(value) => setStatesRange(prev => ({ ...prev, current: value }))}
-                                    label="Maximum Reachable States"
-                                />
                             </div>
                             
                             <div className="text-center">
