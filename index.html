@@ -15,8 +15,217 @@
     <script type="text/babel">
         // RushHourBoard component remains exactly the same as your original
         const RushHourBoard = ({ boardString = "IBBxooIooLDDJAALooJoKEEMFFKooMGGHHHM" }) => {
-            // All your original RushHourBoard code here...
-            // [Previous RushHourBoard component code remains unchanged]
+            // Validate input
+            if (!boardString) {
+                return (
+                    <div className="text-red-500 p-4 text-center">
+                        Please provide a valid board string
+                    </div>
+                );
+            }
+
+            // Validate board size (must be 6x6)
+            if (boardString.length !== 36) {
+                return (
+                    <div className="text-red-500 p-4 text-center">
+                        Invalid board string: must be 36 characters (6x6 board)
+                    </div>
+                );
+            }
+
+            // Constants
+            const size = 6; // Fixed 6x6 board
+            const cellSize = 60;
+            const padding = 12;
+            const backgroundColor = "#FFFFFF";
+            const boardColor = "#F2EACD";
+            const gridLineColor = "#222222";
+            const primaryPieceColor = "#CC3333";
+            const pieceColor = "#338899";
+            const pieceOutlineColor = "#222222";
+            const wallColor = "#222222";
+            const wallBoltColor = "#AAAAAA";
+            
+            // Calculate dimensions
+            const width = size * cellSize;
+            const height = size * cellSize;
+            const viewBoxWidth = width + padding * 2;
+            const viewBoxHeight = height + padding * 2;
+
+            // Parse pieces and walls
+            const pieces = new Map();
+            const walls = [];
+            
+            for (let i = 0; i < boardString.length; i++) {
+                const label = boardString[i];
+                if (label === 'o' || label === '.') continue;
+                
+                if (label === 'x') {
+                    walls.push(i);
+                } else {
+                    if (!pieces.has(label)) {
+                        pieces.set(label, []);
+                    }
+                    pieces.get(label).push(i);
+                }
+            }
+
+            // Sort pieces by label
+            const sortedPieces = Array.from(pieces.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+
+            // Render walls
+            const svgWalls = walls.map((position, index) => {
+                const x = (position % size) * cellSize;
+                const y = Math.floor(position / size) * cellSize;
+                const boltRadius = cellSize / 25;
+                const boltPadding = cellSize / 6.5;
+                
+                return (
+                    <g key={`wall-${index}`}>
+                        {/* Wall square */}
+                        <rect
+                            x={x + padding}
+                            y={y + padding}
+                            width={cellSize}
+                            height={cellSize}
+                            fill={wallColor}
+                        />
+                        {/* Corner bolts */}
+                        <circle
+                            cx={x + padding + boltPadding}
+                            cy={y + padding + boltPadding}
+                            r={boltRadius}
+                            fill={wallBoltColor}
+                        />
+                        <circle
+                            cx={x + padding + cellSize - boltPadding}
+                            cy={y + padding + boltPadding}
+                            r={boltRadius}
+                            fill={wallBoltColor}
+                        />
+                        <circle
+                            cx={x + padding + boltPadding}
+                            cy={y + padding + cellSize - boltPadding}
+                            r={boltRadius}
+                            fill={wallBoltColor}
+                        />
+                        <circle
+                            cx={x + padding + cellSize - boltPadding}
+                            cy={y + padding + cellSize - boltPadding}
+                            r={boltRadius}
+                            fill={wallBoltColor}
+                        />
+                    </g>
+                );
+            });
+
+            // Convert piece positions to SVG elements
+            const svgPieces = sortedPieces.map(([label, positions]) => {
+                // Validate piece size
+                if (positions.length < 2) {
+                    console.warn(`Invalid piece ${label}: size must be at least 2`);
+                    return null;
+                }
+
+                const stride = positions[1] - positions[0];
+                const isHorizontal = stride === 1;
+                const pieceSize = positions.length;
+                
+                // Validate stride
+                if (stride !== 1 && stride !== size) {
+                    console.warn(`Invalid piece ${label}: invalid shape`);
+                    return null;
+                }
+                
+                // Validate consecutive positions
+                for (let i = 2; i < positions.length; i++) {
+                    if (positions[i] - positions[i-1] !== stride) {
+                        console.warn(`Invalid piece ${label}: non-consecutive positions`);
+                        return null;
+                    }
+                }
+                
+                const x = (positions[0] % size) * cellSize;
+                const y = Math.floor(positions[0] / size) * cellSize;
+                const width = isHorizontal ? cellSize * pieceSize : cellSize;
+                const height = isHorizontal ? cellSize : cellSize * pieceSize;
+                
+                const margin = cellSize / 8;
+                
+                return (
+                    <rect
+                        key={label}
+                        x={x + margin + padding}
+                        y={y + margin + padding}
+                        width={width - margin * 2}
+                        height={height - margin * 2}
+                        rx={cellSize / 8}
+                        fill={label === 'A' ? primaryPieceColor : pieceColor}
+                        stroke={pieceOutlineColor}
+                        strokeWidth={cellSize / 32}
+                    />
+                );
+            });
+
+            // Find primary piece (A) row for exit marker
+            const primaryRow = Math.floor(boardString.indexOf('A') / size);
+            
+            return (
+                <div className="flex justify-center items-center w-full">
+                    <svg
+                        viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
+                        className="w-full max-w-lg"
+                    >
+                        {/* Background */}
+                        <rect
+                            x={padding}
+                            y={padding}
+                            width={width}
+                            height={height}
+                            fill={boardColor}
+                            stroke={gridLineColor}
+                            strokeWidth="6"
+                        />
+                        
+                        {/* Grid lines */}
+                        {Array.from({ length: size - 1 }, (_, i) => i + 1).map(i => (
+                            <React.Fragment key={i}>
+                                <line
+                                    x1={i * cellSize + padding}
+                                    y1={padding}
+                                    x2={i * cellSize + padding}
+                                    y2={height + padding}
+                                    stroke={gridLineColor}
+                                    strokeWidth="2"
+                                />
+                                <line
+                                    x1={padding}
+                                    y1={i * cellSize + padding}
+                                    x2={width + padding}
+                                    y2={i * cellSize + padding}
+                                    stroke={gridLineColor}
+                                    strokeWidth="2"
+                                />
+                            </React.Fragment>
+                        ))}
+                        
+                        {/* Walls */}
+                        {svgWalls}
+                        
+                        {/* Pieces */}
+                        {svgPieces}
+                        
+                        {/* Exit marker */}
+                        <path
+                            d={`M ${width + padding} ${(primaryRow + 0.5) * cellSize + padding} 
+                                l ${padding/2} ${-padding/4} 
+                                v ${padding/2} 
+                                z`}
+                            fill={gridLineColor}
+                        />
+                    </svg>
+                </div>
+            );
         };
 
         // New RangeSlider component
